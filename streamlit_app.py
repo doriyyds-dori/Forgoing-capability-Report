@@ -29,13 +29,13 @@ def get_font_name():
     # 验证文件完整性
     if os.path.exists(font_path):
         file_size = os.path.getsize(font_path)
-        if file_size < 1000: 
+        if file_size < 1000:
             st.warning(f"⚠️ 字体文件异常（仅{file_size}字节），重新下载...")
             os.remove(font_path)
             return get_font_name()
     
     try:
-        fm.fontManager.addfont(font_path)
+        fm.fontManager. addfont(font_path)
         return "Noto Sans SC"
     except Exception as e:
         st. warning(f"字体注册失败: {e}，使用系统默认字体")
@@ -44,7 +44,7 @@ def get_font_name():
 # --- 2. 考核配置 ---
 TARGETS = {
     "DCC首呼": 0.95, "DCC二呼": 0.90, "邀约开口率": 80.0, "加微开口率": 80.0,
-    "试乘试驾满意度":  4.80, "试驾排程率": 0.90, "试驾后次日回访率": 0.90,
+    "试乘试驾满意度": 4.80, "试驾排程率": 0.90, "试驾后次日回访率": 0.90,
     "试乘试驾满意度4.5分问卷占比": 0.90, "交易协助满意度": 4.80, "车辆交付满意度": 4.80
 }
 
@@ -83,7 +83,7 @@ def process_data(file):
             except (UnicodeDecodeError, UnicodeError):
                 continue
             except Exception as e:
-                st.warning(f"尝试 {encoding} 编码失败:  {e}")
+                st.warning(f"尝试 {encoding} 编码失败: {e}")
                 continue
         
         if df is None: 
@@ -96,13 +96,13 @@ def process_data(file):
             """)
             raise ValueError("无法识别CSV文件编码")
     else:
-        try: 
+        try:
             df = pd.read_excel(file, header=None, dtype=str, engine='openpyxl')
         except TypeError as e:
             if "InlineFont" in str(e):
                 st.warning("⚠️ 检测到Excel文件格式兼容性问题，尝试备用方式...")
                 try:
-                    df = pd. read_excel(file, header=None, dtype=str, engine='xlrd')
+                    df = pd.read_excel(file, header=None, dtype=str, engine='xlrd')
                 except: 
                     st.error("""
                     ❌ **Excel文件读取失败！**
@@ -116,7 +116,7 @@ def process_data(file):
                 raise
     
     # 提取表头结构
-    header_L1 = df.iloc[2]. ffill().tolist()
+    header_L1 = df.iloc[2].ffill().tolist()
     header_L2 = df.iloc[3]. tolist()
     
     # 清洗表头
@@ -144,9 +144,9 @@ def process_data(file):
         cols[0] = "base_代理商"
     if len(cols) > 1:
         cols[1] = "base_管家"
-    data. columns = cols
+    data.columns = cols
     
-    data['base_代理商'] = data['base_代理商'].ffill()
+    data['base_代理商'] = data['base_代理商']. ffill()
     data = data.dropna(how='all')
     
     headers_struct = list(zip(clean_L1, clean_L2, unique_cols))
@@ -161,7 +161,7 @@ def calc_status(row, headers_map):
         if "指标" in h2:
             target, t_name = get_target(h1)
             if target is not None:
-                val = parse_val(row.get(col_key))
+                val = parse_val(row. get(col_key))
                 if val is not None:
                     comp_val = val
                     if target <= 1.0 and val > 1.0:
@@ -183,7 +183,7 @@ def generate_complex_image(agent_name, agent_data):
     plt.rcParams['font.sans-serif'] = [font_family, 'SimHei', 'DejaVu Sans']
     plt.rcParams['axes.unicode_minus'] = False
     
-    headers_all = agent_data. attrs['headers']
+    headers_all = agent_data.attrs['headers']
     
     # 过滤逻辑
     headers_plot = []
@@ -192,7 +192,7 @@ def generate_complex_image(agent_name, agent_data):
             continue
         if h2 in ["分子", "分母"]: 
             continue
-        headers_plot. append((h1, h2, key))
+        headers_plot.append((h1, h2, key))
     
     headers_plot. append(("考核结论", "结果", "calc_status"))
     
@@ -243,7 +243,7 @@ def generate_complex_image(agent_name, agent_data):
     # 样式调整
     cells = table.get_celld()
 
-    for (row, col), cell in cells.items():
+    for (row, col), cell in cells. items():
         # Row 0: 第一层表头
         if row == 0:
             cell.set_facecolor('#40466e')
@@ -264,7 +264,7 @@ def generate_complex_image(agent_name, agent_data):
             if '小计' in butler_name:
                 bg = '#fff3cd'
                 font_weight = 'bold'
-            else: 
+            else:
                 font_weight = 'normal'
             
             cell.set_facecolor(bg)
@@ -291,7 +291,7 @@ def generate_complex_image(agent_name, agent_data):
                         v_num = parse_val(cell_val)
                         if v_num is not None:
                             c_v = v_num if (t_val > 1.0 or v_num <= 1.0) else v_num / 100.0
-                            if c_v < t_val:
+                            if c_v < t_val: 
                                 txt_color = '#d32f2f'
             
             cell.set_text_props(color=txt_color, weight=font_weight)
@@ -332,10 +332,10 @@ if f:
             with st.spinner("正在生成高清长图..."):
                 sub_df = df[df['base_代理商'] == sel]
                 img = generate_complex_image(sel, sub_df)
-                st. image(img, use_container_width=True)
+                st.image(img, use_container_width=True)
                 st.download_button("📥 下载图片", img, f"{sel}_考核报表.png", "image/png")
                 
-    except Exception as e: 
+    except Exception as e:
         st.error(f"❌ 出错:  {e}")
         import traceback
         st.code(traceback.format_exc())
