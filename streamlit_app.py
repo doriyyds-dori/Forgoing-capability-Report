@@ -11,8 +11,8 @@ import requests
 @st.cache_resource
 def get_font_name():
     """下载中文字体，注册到 Matplotlib，并返回字体名称"""
-    font_url = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
-    font_path = "NotoSansSC-Regular. ttf"  # ✅ 完全无空格
+    font_url = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Regular. ttf"
+    font_path = "NotoSansSC-Regular. ttf"
     
     if not os.path.exists(font_path):
         with st.spinner("正在下载中文字体... "):
@@ -35,7 +35,7 @@ def get_font_name():
             return get_font_name()
     
     try:
-        fm.fontManager.addfont(font_path)
+        fm.fontManager. addfont(font_path)
         return "Noto Sans SC"
     except Exception as e:
         st.warning(f"字体注册失败: {e}，使用系统默认字体")
@@ -43,13 +43,12 @@ def get_font_name():
 
 # --- 2. 考核配置 ---
 TARGETS = {
-    "DCC首呼": 0.95, "DCC二呼": 0.90, "邀约开口率": 80.0, "加微开口率": 80.0,
+    "DCC首呼": 0.95, "DCC二呼": 0.90, "邀约开口率": 80. 0, "加微开口率": 80.0,
     "试乘试驾满意度": 4.80, "试驾排程率": 0.90, "试驾后次日回访率": 0.90,
     "试乘试驾满意度4.5分问卷占比": 0.90, "交易协助满意度": 4.80, "车辆交付满意度": 4.80
 }
 
 def get_target(col_name):
-    """根据大指标名称匹配目标值"""
     if not col_name:
         return None, None
     target_val, target_name = None, ""
@@ -60,7 +59,6 @@ def get_target(col_name):
     return target_val, target_name
 
 def parse_val(v):
-    """转数值"""
     try:
         if pd.isna(v) or str(v).strip() in ["-", ""]:
             return None
@@ -68,12 +66,11 @@ def parse_val(v):
     except:
         return None
 
-# --- 3. 数据处理 (兼容编码和openpyxl错误) ---
+# --- 3. 数据处理 ---
 def process_data(file):
     if file.name.endswith('.csv'):
         encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'latin1']
         df = None
-        
         for encoding in encodings: 
             try:
                 file.seek(0)
@@ -85,15 +82,8 @@ def process_data(file):
             except Exception as e:
                 st.warning(f"尝试 {encoding} 编码失败: {e}")
                 continue
-        
-        if df is None: 
-            st.error("""
-            ❌ **CSV文件编码识别失败！**
-            
-            **解决方案：**
-            1. 用Excel打开CSV，选择"另存为" → 编码选择 "UTF-8"
-            2. 或直接上传原始Excel文件（. xlsx格式）
-            """)
+        if df is None:
+            st. error("❌ CSV文件编码识别失败！请用Excel另存为UTF-8格式")
             raise ValueError("无法识别CSV文件编码")
     else:
         try:
@@ -104,54 +94,38 @@ def process_data(file):
                 try:
                     df = pd.read_excel(file, header=None, dtype=str, engine='xlrd')
                 except: 
-                    st.error("""
-                    ❌ **Excel文件读取失败！**
-                    
-                    **解决方案：**
-                    1. 在Excel中另存为 `.csv` 格式（选择UTF-8编码）
-                    2. 或用Excel重新保存为标准. xlsx格式
-                    """)
+                    st.error("❌ Excel文件读取失败！请另存为CSV格式(UTF-8编码)")
                     raise
             else:
                 raise
     
-    # 提取表头结构
     header_L1 = df.iloc[2]. ffill().tolist()
-    header_L2 = df. iloc[3]. tolist()
+    header_L2 = df.iloc[3]. tolist()
     
-    # 清洗表头
     clean_L1, clean_L2, unique_cols = [], [], []
     for i, (h1, h2) in enumerate(zip(header_L1, header_L2)):
         h1 = str(h1).strip() if pd.notna(h1) else ""
         h2 = str(h2).strip() if pd.notna(h2) else ""
-        
-        if h1 == "" or h1.lower() == "nan":
+        if h1 == "" or h1. lower() == "nan":
             h1 = h2
         if h2 == "" or h2.lower() == "nan":
             h2 = h1
-        
         clean_L1.append(h1)
         clean_L2.append(h2)
         unique_cols.append(f"{i}_{h1}_{h2}")
 
-    # 处理数据体
-    data = df.iloc[4:].copy()
+    data = df.iloc[4:]. copy()
     data.columns = unique_cols
-    
-    # 标准化前两列
     cols = list(data.columns)
     if len(cols) > 0:
         cols[0] = "base_代理商"
     if len(cols) > 1:
         cols[1] = "base_管家"
     data.columns = cols
-    
-    data['base_代理商'] = data['base_代理商'].ffill()
+    data['base_代理商'] = data['base_代理商']. ffill()
     data = data.dropna(how='all')
-    
     headers_struct = list(zip(clean_L1, clean_L2, unique_cols))
     data. attrs['headers'] = headers_struct
-    
     return data
 
 # --- 4. 生成考核结果 ---
@@ -161,31 +135,25 @@ def calc_status(row, headers_map):
         if "指标" in h2:
             target, t_name = get_target(h1)
             if target is not None:
-                val = parse_val(row. get(col_key))
-                if val is not None:
+                val = parse_val(row.get(col_key))
+                if val is not None: 
                     comp_val = val
                     if target <= 1.0 and val > 1.0:
                         comp_val = val / 100.0
-                    
                     if comp_val < target:
                         t_str = f"{target:.0%}" if target <= 1.0 else f"{target}"
                         a_str = f"{comp_val:.1%}" if target <= 1.0 else f"{val}"
                         failures.append(f"{t_name}:\n{a_str} / {t_str}")
-    
     return "👍 全部合格" if not failures else "\n".join(failures)
 
-# --- 5. 绘图 (双层表头核心) ---
+# --- 5. 绘图 ---
 def generate_complex_image(agent_name, agent_data):
     font_family = get_font_name()
-    
-    # 全局设置字体
     plt.rcParams['font.family'] = font_family
     plt.rcParams['font.sans-serif'] = [font_family, 'SimHei', 'DejaVu Sans']
     plt.rcParams['axes.unicode_minus'] = False
     
     headers_all = agent_data.attrs['headers']
-    
-    # 过滤逻辑
     headers_plot = []
     for i, (h1, h2, key) in enumerate(headers_all):
         if i == 0:
@@ -193,24 +161,20 @@ def generate_complex_image(agent_name, agent_data):
         if h2 in ["分子", "分母"]: 
             continue
         headers_plot.append((h1, h2, key))
-    
     headers_plot. append(("考核结论", "结果", "calc_status"))
     
-    # 计算每一行的数据
     plot_data = []
     for _, row in agent_data.iterrows():
         row_vals = []
         status_txt = calc_status(row, headers_all)
-        
         for h1, h2, key in headers_plot:
             if key == "calc_status":
                 row_vals.append(status_txt)
             else:
                 val = row.get(key, "")
-                row_vals. append(val)
+                row_vals.append(val)
         plot_data.append(row_vals)
 
-    # 构建表格内容
     table_content = []
     row0 = [x[0] for x in headers_plot]
     row1 = [x[1] for x in headers_plot]
@@ -218,59 +182,43 @@ def generate_complex_image(agent_name, agent_data):
     table_content.append(row1)
     table_content.extend(plot_data)
     
-    # 尺寸计算
     num_cols = len(headers_plot)
     num_rows = len(table_content)
-    
     row_heights = [1.2, 1.0]
     for r_idx in range(2, num_rows):
         max_newlines = 0
         for c_val in table_content[r_idx]:
             max_newlines = max(max_newlines, str(c_val).count('\n'))
         row_heights.append(1.0 + max_newlines * 0.45)
-        
+    
     total_h = sum(row_heights) * 0.5 + 2
     total_w = max(16, num_cols * 1.5 + 3)
-    
     fig, ax = plt.subplots(figsize=(total_w, total_h))
-    ax.axis('off')
-    
-    # 绘制表格
+    ax.axis('off()
     table = ax.table(cellText=table_content, cellLoc='center', loc='center', bbox=[0, 0, 1, 1])
     table.auto_set_font_size(False)
     table.set_fontsize(11)
-    
-    # 样式调整
     cells = table.get_celld()
 
     for (row, col), cell in cells.items():
-        # Row 0: 第一层表头
         if row == 0:
-            cell.set_facecolor('#40466e')
+            cell. set_facecolor('#40466e')
             cell.set_text_props(color='white', weight='bold', size=13)
             cell.set_height(row_heights[row] * 0.04)
-            
-        # Row 1: 第二层表头
         elif row == 1:
             cell.set_facecolor('#5a629e')
             cell.set_text_props(color='white', weight='bold', size=11)
             cell.set_height(row_heights[row] * 0.04)
-
-        # 数据行
         else:
             bg = '#f2f2f2' if row % 2 == 0 else 'white'
-            
             butler_name = str(table_content[row][0])
-            if '小计' in butler_name:
+            if '小计' in butler_name: 
                 bg = '#fff3cd'
                 font_weight = 'bold'
             else:
                 font_weight = 'normal'
-            
             cell.set_facecolor(bg)
             txt_color = 'black'
-            
-            # 考核结果列
             if col == num_cols - 1:
                 cell_text = cell.get_text().get_text()
                 if "全部合格" in cell_text:
@@ -278,13 +226,10 @@ def generate_complex_image(agent_name, agent_data):
                     font_weight = 'bold'
                 else:
                     txt_color = '#c62828'
-                    cell.set_text_props(ha='left')
-            
-            # 普通数据列标红逻辑
+                    cell. set_text_props(ha='left')
             else:
                 h1, h2, _ = headers_plot[col]
                 cell_val = table_content[row][col]
-                
                 if "指标" in h2:
                     t_val, _ = get_target(h1)
                     if t_val is not None:
@@ -293,12 +238,10 @@ def generate_complex_image(agent_name, agent_data):
                             c_v = v_num if (t_val > 1.0 or v_num <= 1.0) else v_num / 100.0
                             if c_v < t_val:
                                 txt_color = '#d32f2f'
-            
             cell.set_text_props(color=txt_color, weight=font_weight)
             cell.set_height(row_heights[row] * 0.05)
 
     plt.title(f"{agent_name} - 门店考核报表", fontsize=20, pad=30, color='#333333')
-    
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', dpi=200)
     plt.close(fig)
@@ -307,7 +250,7 @@ def generate_complex_image(agent_name, agent_data):
 
 # --- 6. Streamlit App ---
 st.set_page_config(page_title="门店考核报表V2", layout="wide")
-st.title("📊 门店考核报表生成器 (专业版)")
+st.title("📊 门店考核报���生成器 (专业版)")
 st.markdown("""
 上传数据文件，生成带有**双层表头**和**智能考核判定**的专业报表。
 (已自动隐藏分子、分母列，只显示核心指标)
@@ -324,17 +267,14 @@ if f:
     try:
         df = process_data(f)
         st.success("✅ 数据加载成功")
-        
         agents = df['base_代理商'].unique()
         sel = st.selectbox("选择门店:", agents)
-        
         if sel and st.button("生成报表"):
-            with st.spinner("正在生成高清长图... "):
+            with st.spinner("正在生成高清长图..."):
                 sub_df = df[df['base_代理商'] == sel]
                 img = generate_complex_image(sel, sub_df)
-                st. image(img, use_container_width=True)
+                st.image(img, use_container_width=True)
                 st.download_button("📥 下载图片", img, f"{sel}_考核报表.png", "image/png")
-                
     except Exception as e:
         st.error(f"❌ 出错:  {e}")
         import traceback
