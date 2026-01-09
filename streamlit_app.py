@@ -7,12 +7,14 @@ import io
 import os
 import requests
 
-# --- 1. 字体配置 ---
+# --- 1. 字体配置 (修复版) ---
 @st.cache_resource
-def get_font_path():
-    """下载并返回中文字体路径"""
+def get_font_name():
+    """下载中文字体，注册到 Matplotlib，并返回字体名称"""
     font_url = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
     font_path = "NotoSansSC-Regular.ttf"
+    
+    # 1. 下载字体
     if not os.path.exists(font_path):
         with st.spinner("正在下载中文字体..."):
             try:
@@ -21,8 +23,16 @@ def get_font_path():
                     f.write(r.content)
             except Exception as e:
                 st.error(f"字体下载失败: {e}")
-                return None
-    return font_path
+                return "sans-serif" # 失败回退
+
+    # 2. 注册字体并获取名称
+    try:
+        fm.fontManager.addfont(font_path)
+        prop = fm.FontProperties(fname=font_path)
+        return prop.get_name() # 返回 'Noto Sans SC'
+    except Exception as e:
+        st.error(f"字体注册警告: {e}")
+        return "sans-serif"
 
 # --- 2. 考核配置 ---
 TARGETS = {
@@ -120,8 +130,8 @@ def calc_status(row, headers_map):
 
 # --- 5. 绘图 (双层表头核心) ---
 def generate_complex_image(agent_name, agent_data):
-    font_path = get_font_path()
-    prop = fm.FontProperties(fname=font_path) if font_path else None
+    # 修改处：获取字体名称字符串，而非对象
+    font_family = get_font_name()
     
     # 1. 准备数据和表头
     headers_all = agent_data.attrs['headers'] # [(H1, H2, Key), ...]
@@ -211,12 +221,13 @@ def generate_complex_image(agent_name, agent_data):
         return headers_plot[c_idx][0] == headers_plot[c_idx-1][0]
 
     for (row, col), cell in cells.items():
-        cell.set_text_props(fontproperties=prop, padding=10)
+        # 修改处：使用 fontfamily 参数，而不是 fontproperties 对象
+        cell.set_text_props(fontfamily=font_family, padding=10)
         
         # --- Row 0: Metric Headers (Top Level) ---
         if row == 0:
             cell.set_facecolor('#40466e') # 深蓝
-            cell.set_text_props(color='white', weight='bold', size=13, fontproperties=prop)
+            cell.set_text_props(color='white', weight='bold', size=13, fontfamily=font_family)
             cell.set_height(row_heights[row] * 0.04) # 归一化高度调整
             
             # 视觉合并逻辑
@@ -227,7 +238,7 @@ def generate_complex_image(agent_name, agent_data):
         # --- Row 1: Sub Headers (Second Level) ---
         elif row == 1:
             cell.set_facecolor('#5a629e') # 浅一点的蓝
-            cell.set_text_props(color='white', weight='bold', size=11, fontproperties=prop)
+            cell.set_text_props(color='white', weight='bold', size=11, fontfamily=font_family)
             cell.set_height(row_heights[row] * 0.04)
 
         # --- Data Rows ---
@@ -277,13 +288,13 @@ def generate_complex_image(agent_name, agent_data):
                             if c_v < t_val:
                                 txt_color = '#d32f2f'
             
-            cell.set_text_props(color=txt_color, weight=font_weight, fontproperties=prop)
+            cell.set_text_props(color=txt_color, weight=font_weight, fontfamily=font_family)
             
             # 动态高度
             cell.set_height(row_heights[row] * 0.05)
 
     # 标题
-    plt.title(f"{agent_name} - 门店考核报表", fontsize=20, pad=30, fontproperties=prop, color='#333333')
+    plt.title(f"{agent_name} - 门店考核报表", fontsize=20, pad=30, fontfamily=font_family, color='#333333')
     
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', dpi=200) # 提高DPI使文字更清晰
