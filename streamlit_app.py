@@ -11,12 +11,13 @@ import requests
 @st.cache_resource
 def get_font_name():
     """下载中文字体，注册到 Matplotlib，并返回字体名称"""
-    font_url = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
-    font_path = "NotoSansSC-Regular.ttf"
+    # 更换为 LXGW WenKai (霞鹜文楷)，这是一个高质量开源中文字体，路径稳定
+    font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/lxgwwenkai/LXGWWenKai-Regular.ttf"
+    font_path = "LXGWWenKai-Regular.ttf"
     
     # 1. 下载字体
     if not os.path.exists(font_path):
-        with st.spinner("正在下载中文字体..."):
+        with st.spinner("正在下载中文字体 (LXGW WenKai)..."):
             try:
                 r = requests.get(font_url, timeout=30)
                 r.raise_for_status()
@@ -25,6 +26,7 @@ def get_font_name():
                 st.success(f"✅ 字体下载成功，文件大小: {len(r.content)} 字节")
             except Exception as e:
                 st.error(f"字体下载失败: {e}")
+                # 如果主链接失败，返回系统默认，避免程序崩溃
                 return "sans-serif"
     
     # 2. 验证文件完整性
@@ -216,7 +218,7 @@ def generate_complex_image(agent_name, agent_data):
     total_w = max(16, num_cols * 1.5 + 3)
     
     fig, ax = plt.subplots(figsize=(total_w, total_h))
-    ax.axis('off')  # 修复了这里的语法错误
+    ax.axis('off')
     
     table = ax.table(cellText=table_content, cellLoc='center', loc='center', bbox=[0, 0, 1, 1])
     table.auto_set_font_size(False)
