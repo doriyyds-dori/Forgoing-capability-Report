@@ -7,17 +7,17 @@ import io
 import os
 import requests
 
-# --- 1. 字体配置 (完全修复版) ---
+# --- 1. 字体配置 (修复版) ---
 @st.cache_resource
 def get_font_name():
     """下载中文字体，注册到 Matplotlib，并返回字体名称"""
-    # 更换为 LXGW WenKai (霞鹜文楷)，这是一个高质量开源中文字体，路径稳定
-    font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/lxgwwenkai/LXGWWenKai-Regular.ttf"
-    font_path = "LXGWWenKai-Regular.ttf"
+    # 改回使用 Noto Sans SC，这是最稳定的 Google Fonts 中文字体源
+    font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
+    font_path = "NotoSansSC-Regular.ttf"
     
     # 1. 下载字体
     if not os.path.exists(font_path):
-        with st.spinner("正在下载中文字体 (LXGW WenKai)..."):
+        with st.spinner("正在下载中文字体 (Noto Sans SC)..."):
             try:
                 r = requests.get(font_url, timeout=30)
                 r.raise_for_status()
