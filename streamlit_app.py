@@ -12,12 +12,12 @@ import requests
 def get_font_name():
     """下载中文字体，注册到 Matplotlib，并返回字体名称"""
     font_url = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
-    font_path = "NotoSansSC-Regular. ttf"
+    font_path = "NotoSansSC-Regular. ttf"  # ✅ 完全无空格
     
     if not os.path.exists(font_path):
-        with st.spinner("正在下载中文字体..."):
+        with st.spinner("正在下载中文字体... "):
             try:
-                r = requests. get(font_url, timeout=30)
+                r = requests.get(font_url, timeout=30)
                 r.raise_for_status()
                 with open(font_path, "wb") as f:
                     f.write(r.content)
@@ -29,16 +29,16 @@ def get_font_name():
     # 验证文件完整性
     if os.path.exists(font_path):
         file_size = os.path.getsize(font_path)
-        if file_size < 1000:
+        if file_size < 1000: 
             st.warning(f"⚠️ 字体文件异常（仅{file_size}字节），重新下载...")
             os.remove(font_path)
             return get_font_name()
     
     try:
-        fm.fontManager. addfont(font_path)
+        fm.fontManager.addfont(font_path)
         return "Noto Sans SC"
     except Exception as e:
-        st. warning(f"字体注册失败: {e}，使用系统默认字体")
+        st.warning(f"字体注册失败: {e}，使用系统默认字体")
         return "SimHei"
 
 # --- 2. 考核配置 ---
@@ -116,8 +116,8 @@ def process_data(file):
                 raise
     
     # 提取表头结构
-    header_L1 = df.iloc[2].ffill().tolist()
-    header_L2 = df.iloc[3]. tolist()
+    header_L1 = df.iloc[2]. ffill().tolist()
+    header_L2 = df. iloc[3]. tolist()
     
     # 清洗表头
     clean_L1, clean_L2, unique_cols = [], [], []
@@ -125,7 +125,7 @@ def process_data(file):
         h1 = str(h1).strip() if pd.notna(h1) else ""
         h2 = str(h2).strip() if pd.notna(h2) else ""
         
-        if h1 == "" or h1. lower() == "nan":
+        if h1 == "" or h1.lower() == "nan":
             h1 = h2
         if h2 == "" or h2.lower() == "nan":
             h2 = h1
@@ -146,11 +146,11 @@ def process_data(file):
         cols[1] = "base_管家"
     data.columns = cols
     
-    data['base_代理商'] = data['base_代理商']. ffill()
+    data['base_代理商'] = data['base_代理商'].ffill()
     data = data.dropna(how='all')
     
     headers_struct = list(zip(clean_L1, clean_L2, unique_cols))
-    data.attrs['headers'] = headers_struct
+    data. attrs['headers'] = headers_struct
     
     return data
 
@@ -207,7 +207,7 @@ def generate_complex_image(agent_name, agent_data):
                 row_vals.append(status_txt)
             else:
                 val = row.get(key, "")
-                row_vals.append(val)
+                row_vals. append(val)
         plot_data.append(row_vals)
 
     # 构建表格内容
@@ -243,7 +243,7 @@ def generate_complex_image(agent_name, agent_data):
     # 样式调整
     cells = table.get_celld()
 
-    for (row, col), cell in cells. items():
+    for (row, col), cell in cells.items():
         # Row 0: 第一层表头
         if row == 0:
             cell.set_facecolor('#40466e')
@@ -252,7 +252,7 @@ def generate_complex_image(agent_name, agent_data):
             
         # Row 1: 第二层表头
         elif row == 1:
-            cell. set_facecolor('#5a629e')
+            cell.set_facecolor('#5a629e')
             cell.set_text_props(color='white', weight='bold', size=11)
             cell.set_height(row_heights[row] * 0.04)
 
@@ -278,7 +278,7 @@ def generate_complex_image(agent_name, agent_data):
                     font_weight = 'bold'
                 else:
                     txt_color = '#c62828'
-                    cell. set_text_props(ha='left')
+                    cell.set_text_props(ha='left')
             
             # 普通数据列标红逻辑
             else:
@@ -291,7 +291,7 @@ def generate_complex_image(agent_name, agent_data):
                         v_num = parse_val(cell_val)
                         if v_num is not None:
                             c_v = v_num if (t_val > 1.0 or v_num <= 1.0) else v_num / 100.0
-                            if c_v < t_val: 
+                            if c_v < t_val:
                                 txt_color = '#d32f2f'
             
             cell.set_text_props(color=txt_color, weight=font_weight)
@@ -329,10 +329,10 @@ if f:
         sel = st.selectbox("选择门店:", agents)
         
         if sel and st.button("生成报表"):
-            with st.spinner("正在生成高清长图..."):
+            with st.spinner("正在生成高清长图... "):
                 sub_df = df[df['base_代理商'] == sel]
                 img = generate_complex_image(sel, sub_df)
-                st.image(img, use_container_width=True)
+                st. image(img, use_container_width=True)
                 st.download_button("📥 下载图片", img, f"{sel}_考核报表.png", "image/png")
                 
     except Exception as e:
