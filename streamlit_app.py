@@ -12,40 +12,39 @@ import requests
 def get_font_name():
     """下载中文字体，注册到 Matplotlib，并返回字体名称"""
     font_url = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
-    font_path = "NotoSansSC-Regular. ttf"  # 修复：去掉多余空格
+    font_path = "NotoSansSC-Regular. ttf"
     
     if not os.path.exists(font_path):
         with st.spinner("正在下载中文字体..."):
             try:
-                r = requests.get(font_url, timeout=30)
+                r = requests. get(font_url, timeout=30)
                 r.raise_for_status()
                 with open(font_path, "wb") as f:
                     f.write(r.content)
                 st.success(f"✅ 字体下载成功，文件大小: {len(r.content)} 字节")
             except Exception as e:
-                st.error(f"字体下载失败:  {e}")
+                st.error(f"字体下载失败: {e}")
                 return "sans-serif"
     
     # 验证文件完整性
     if os.path.exists(font_path):
         file_size = os.path.getsize(font_path)
-        if file_size < 1000:   # 字体文件应该至少几KB
+        if file_size < 1000: 
             st.warning(f"⚠️ 字体文件异常（仅{file_size}字节），重新下载...")
             os.remove(font_path)
-            return get_font_name()  # 递归重新下载
+            return get_font_name()
     
     try:
         fm.fontManager.addfont(font_path)
         return "Noto Sans SC"
     except Exception as e:
-        st. warning(f"字体注册失败:  {e}，使用系统默认字体")
-        # 尝试使用系统中文字体
-        return "SimHei"  # 黑体（Windows/Linux常见）
+        st. warning(f"字体注册失败: {e}，使用系统默认字体")
+        return "SimHei"
 
 # --- 2. 考核配置 ---
 TARGETS = {
     "DCC首呼": 0.95, "DCC二呼": 0.90, "邀约开口率": 80.0, "加微开口率": 80.0,
-    "试乘试驾满意度": 4.80, "试驾排程率": 0.90, "试驾后次日回访率": 0.90,
+    "试乘试驾满意度":  4.80, "试驾排程率": 0.90, "试驾后次日回访率": 0.90,
     "试乘试驾满意度4.5分问卷占比": 0.90, "交易协助满意度": 4.80, "车辆交付满意度": 4.80
 }
 
@@ -72,20 +71,19 @@ def parse_val(v):
 # --- 3. 数据处理 (兼容编码和openpyxl错误) ---
 def process_data(file):
     if file.name.endswith('.csv'):
-        # 尝试多种编码读取CSV
         encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'latin1']
         df = None
         
         for encoding in encodings: 
             try:
-                file.seek(0)  # 重置文件指针
+                file.seek(0)
                 df = pd.read_csv(file, header=None, dtype=str, encoding=encoding)
                 st.info(f"✅ CSV文件已使用 {encoding. upper()} 编码成功读取")
                 break
             except (UnicodeDecodeError, UnicodeError):
                 continue
             except Exception as e:
-                st.warning(f"尝试 {encoding} 编码失败: {e}")
+                st.warning(f"尝试 {encoding} 编码失败:  {e}")
                 continue
         
         if df is None: 
@@ -98,7 +96,6 @@ def process_data(file):
             """)
             raise ValueError("无法识别CSV文件编码")
     else:
-        # 读取Excel文件
         try: 
             df = pd.read_excel(file, header=None, dtype=str, engine='openpyxl')
         except TypeError as e:
@@ -106,7 +103,7 @@ def process_data(file):
                 st.warning("⚠️ 检测到Excel文件格式兼容性问题，尝试备用方式...")
                 try:
                     df = pd. read_excel(file, header=None, dtype=str, engine='xlrd')
-                except:
+                except: 
                     st.error("""
                     ❌ **Excel文件读取失败！**
                     
@@ -147,13 +144,13 @@ def process_data(file):
         cols[0] = "base_代理商"
     if len(cols) > 1:
         cols[1] = "base_管家"
-    data.columns = cols
+    data. columns = cols
     
     data['base_代理商'] = data['base_代理商'].ffill()
     data = data.dropna(how='all')
     
     headers_struct = list(zip(clean_L1, clean_L2, unique_cols))
-    data. attrs['headers'] = headers_struct
+    data.attrs['headers'] = headers_struct
     
     return data
 
@@ -164,8 +161,8 @@ def calc_status(row, headers_map):
         if "指标" in h2:
             target, t_name = get_target(h1)
             if target is not None:
-                val = parse_val(row. get(col_key))
-                if val is not None: 
+                val = parse_val(row.get(col_key))
+                if val is not None:
                     comp_val = val
                     if target <= 1.0 and val > 1.0:
                         comp_val = val / 100.0
@@ -184,9 +181,9 @@ def generate_complex_image(agent_name, agent_data):
     # 全局设置字体
     plt.rcParams['font.family'] = font_family
     plt.rcParams['font.sans-serif'] = [font_family, 'SimHei', 'DejaVu Sans']
-    plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+    plt.rcParams['axes.unicode_minus'] = False
     
-    headers_all = agent_data.attrs['headers']
+    headers_all = agent_data. attrs['headers']
     
     # 过滤逻辑
     headers_plot = []
@@ -195,9 +192,9 @@ def generate_complex_image(agent_name, agent_data):
             continue
         if h2 in ["分子", "分母"]: 
             continue
-        headers_plot.append((h1, h2, key))
+        headers_plot. append((h1, h2, key))
     
-    headers_plot.append(("考核结论", "结果", "calc_status"))
+    headers_plot. append(("考核结论", "结果", "calc_status"))
     
     # 计算每一行的数据
     plot_data = []
@@ -264,10 +261,10 @@ def generate_complex_image(agent_name, agent_data):
             bg = '#f2f2f2' if row % 2 == 0 else 'white'
             
             butler_name = str(table_content[row][0])
-            if '小计' in butler_name: 
+            if '小计' in butler_name:
                 bg = '#fff3cd'
                 font_weight = 'bold'
-            else:
+            else: 
                 font_weight = 'normal'
             
             cell.set_facecolor(bg)
@@ -281,7 +278,7 @@ def generate_complex_image(agent_name, agent_data):
                     font_weight = 'bold'
                 else:
                     txt_color = '#c62828'
-                    cell.set_text_props(ha='left')
+                    cell. set_text_props(ha='left')
             
             # 普通数据列标红逻辑
             else:
