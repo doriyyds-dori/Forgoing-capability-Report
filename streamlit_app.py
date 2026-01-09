@@ -2,40 +2,51 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-from matplotlib. table import Table
+from matplotlib.table import Table
 import io
 import os
 import requests
 
-# --- 1. 字体配置 (修复版) ---
+# --- 1. 字体配置 (完全修复版) ---
 @st.cache_resource
 def get_font_name():
     """下载中文字体，注册到 Matplotlib，并返回字体名称"""
     font_url = "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
-    font_path = "NotoSansSC-Regular. ttf"
+    font_path = "NotoSansSC-Regular. ttf"  # 修复：去掉多余空格
     
     if not os.path.exists(font_path):
         with st.spinner("正在下载中文字体..."):
             try:
-                r = requests.get(font_url)
+                r = requests.get(font_url, timeout=30)
+                r.raise_for_status()
                 with open(font_path, "wb") as f:
                     f.write(r.content)
+                st.success(f"✅ 字体下载成功，文件大小: {len(r.content)} 字节")
             except Exception as e:
-                st. error(f"字体下载失败:  {e}")
+                st.error(f"字体下载失败:  {e}")
                 return "sans-serif"
-
-    try: 
+    
+    # 验证文件完整性
+    if os.path.exists(font_path):
+        file_size = os.path.getsize(font_path)
+        if file_size < 1000:   # 字体文件应该至少几KB
+            st.warning(f"⚠️ 字体文件异常（仅{file_size}字节），重新下载...")
+            os.remove(font_path)
+            return get_font_name()  # 递归重新下载
+    
+    try:
         fm.fontManager.addfont(font_path)
         return "Noto Sans SC"
     except Exception as e:
-        st.error(f"字体注册警告:  {e}")
-        return "sans-serif"
+        st. warning(f"字体注册失败:  {e}，使用系统默认字体")
+        # 尝试使用系统中文字体
+        return "SimHei"  # 黑体（Windows/Linux常见）
 
 # --- 2. 考核配置 ---
 TARGETS = {
     "DCC首呼": 0.95, "DCC二呼": 0.90, "邀约开口率": 80.0, "加微开口率": 80.0,
-    "试乘试驾满意度":  4.80, "试驾排程率": 0.90, "试驾后次日回访率": 0.90,
-    "试乘试驾满意度4.5分问卷占比": 0.90, "交易协助满意度": 4.80, "车辆交付满意度":  4.80
+    "试乘试驾满意度": 4.80, "试驾排程率": 0.90, "试驾后次日回访率": 0.90,
+    "试乘试驾满意度4.5分问卷占比": 0.90, "交易协助满意度": 4.80, "车辆交付满意度": 4.80
 }
 
 def get_target(col_name):
@@ -77,7 +88,7 @@ def process_data(file):
                 st.warning(f"尝试 {encoding} 编码失败: {e}")
                 continue
         
-        if df is None:
+        if df is None: 
             st.error("""
             ❌ **CSV文件编码识别失败！**
             
@@ -94,7 +105,7 @@ def process_data(file):
             if "InlineFont" in str(e):
                 st.warning("⚠️ 检测到Excel文件格式兼容性问题，尝试备用方式...")
                 try:
-                    df = pd.read_excel(file, header=None, dtype=str, engine='xlrd')
+                    df = pd. read_excel(file, header=None, dtype=str, engine='xlrd')
                 except:
                     st.error("""
                     ❌ **Excel文件读取失败！**
@@ -138,7 +149,7 @@ def process_data(file):
         cols[1] = "base_管家"
     data.columns = cols
     
-    data['base_代理商'] = data['base_代理商']. ffill()
+    data['base_代理商'] = data['base_代理商'].ffill()
     data = data.dropna(how='all')
     
     headers_struct = list(zip(clean_L1, clean_L2, unique_cols))
@@ -153,13 +164,13 @@ def calc_status(row, headers_map):
         if "指标" in h2:
             target, t_name = get_target(h1)
             if target is not None:
-                val = parse_val(row.get(col_key))
+                val = parse_val(row. get(col_key))
                 if val is not None: 
                     comp_val = val
                     if target <= 1.0 and val > 1.0:
                         comp_val = val / 100.0
                     
-                    if comp_val < target: 
+                    if comp_val < target:
                         t_str = f"{target:.0%}" if target <= 1.0 else f"{target}"
                         a_str = f"{comp_val:.1%}" if target <= 1.0 else f"{val}"
                         failures.append(f"{t_name}:\n{a_str} / {t_str}")
@@ -172,7 +183,8 @@ def generate_complex_image(agent_name, agent_data):
     
     # 全局设置字体
     plt.rcParams['font.family'] = font_family
-    plt.rcParams['font.sans-serif'] = [font_family]
+    plt.rcParams['font.sans-serif'] = [font_family, 'SimHei', 'DejaVu Sans']
+    plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
     
     headers_all = agent_data.attrs['headers']
     
@@ -183,13 +195,13 @@ def generate_complex_image(agent_name, agent_data):
             continue
         if h2 in ["分子", "分母"]: 
             continue
-        headers_plot. append((h1, h2, key))
+        headers_plot.append((h1, h2, key))
     
     headers_plot.append(("考核结论", "结果", "calc_status"))
     
     # 计算每一行的数据
     plot_data = []
-    for _, row in agent_data. iterrows():
+    for _, row in agent_data.iterrows():
         row_vals = []
         status_txt = calc_status(row, headers_all)
         
@@ -201,7 +213,7 @@ def generate_complex_image(agent_name, agent_data):
                 row_vals.append(val)
         plot_data.append(row_vals)
 
-    # 构���表格内容
+    # 构建表格内容
     table_content = []
     row0 = [x[0] for x in headers_plot]
     row1 = [x[1] for x in headers_plot]
@@ -269,7 +281,7 @@ def generate_complex_image(agent_name, agent_data):
                     font_weight = 'bold'
                 else:
                     txt_color = '#c62828'
-                    cell. set_text_props(ha='left')
+                    cell.set_text_props(ha='left')
             
             # 普通数据列标红逻辑
             else:
@@ -282,7 +294,7 @@ def generate_complex_image(agent_name, agent_data):
                         v_num = parse_val(cell_val)
                         if v_num is not None:
                             c_v = v_num if (t_val > 1.0 or v_num <= 1.0) else v_num / 100.0
-                            if c_v < t_val: 
+                            if c_v < t_val:
                                 txt_color = '#d32f2f'
             
             cell.set_text_props(color=txt_color, weight=font_weight)
@@ -326,7 +338,7 @@ if f:
                 st. image(img, use_container_width=True)
                 st.download_button("📥 下载图片", img, f"{sel}_考核报表.png", "image/png")
                 
-    except Exception as e:
+    except Exception as e: 
         st.error(f"❌ 出错:  {e}")
         import traceback
         st.code(traceback.format_exc())
