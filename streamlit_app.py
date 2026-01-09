@@ -35,13 +35,18 @@ def configure_font():
 def process_data(uploaded_file):
     """
     读取并清洗数据：处理多层表头，填充合并单元格
+    支持 CSV 和 Excel (.xlsx) 格式
     """
-    # 1. 读取所有数据，不做表头解析
-    df_raw = pd.read_csv(uploaded_file, header=None, dtype=str)
+    # 1. 根据文件扩展名读取数据，不做表头解析，统一按照字符串读取
+    if uploaded_file.name.endswith('.csv'):
+        df_raw = pd.read_csv(uploaded_file, header=None, dtype=str)
+    else:
+        # Excel 读取需要 openpyxl 引擎，header=None 保证读取前两行
+        df_raw = pd.read_excel(uploaded_file, header=None, dtype=str, engine='openpyxl')
     
     # 2. 提取表头行（根据您的描述，第3行是指标，第4行是分子分母）
     # Python索引从0开始，所以是 index 2 和 3
-    # 注意：CSV如果前两行被忽略，通常pandas读进来时前两行可能已经是数据了
+    # 注意：如果前两行被忽略，通常pandas读进来时前两行可能已经是数据了
     # 这里我们假设用户上传的文件包含那两行被忽略的行
     
     # 获取指标名称行 (第3行)
@@ -56,9 +61,10 @@ def process_data(uploaded_file):
     for m, s in zip(metric_names, sub_cols):
         m = str(m).strip()
         s = str(s).strip()
-        if m == "nan" or m == "":
+        # 处理 NaN 或 空字符串的情况
+        if m.lower() == "nan" or m == "":
             new_columns.append(s) # 如果第一行是空的（如代理商列），只取第二行
-        elif s == "nan" or s == "":
+        elif s.lower() == "nan" or s == "":
             new_columns.append(m)
         else:
             new_columns.append(f"{m}\n{s}") # 使用换行符分隔，方便绘图
@@ -70,11 +76,12 @@ def process_data(uploaded_file):
     # 重命名固定列，防止乱码或不一致
     # 假设第一列是代理商，第二列是管家
     cols = list(df_data.columns)
-    cols[0] = "代理商"
-    cols[1] = "管家"
+    if len(cols) > 0: cols[0] = "代理商"
+    if len(cols) > 1: cols[1] = "管家"
     df_data.columns = cols
     
     # 5. 填充“代理商”列（处理合并单元格）
+    # Excel合并单元格读取后，通常只有第一个单元格有值，其余为NaN
     df_data['代理商'] = df_data['代理商'].fillna(method='ffill')
     
     # 6. 过滤掉完全为空的行
@@ -162,11 +169,11 @@ st.set_page_config(page_title="代理商报表生成器", layout="wide")
 
 st.title("📊 代理商考核指标长图生成器")
 st.markdown("""
-上传您的CSV数据文件，系统将自动清洗数据，并按**代理商**生成可视化的考核长图。
+上传您的数据文件 (Excel 或 CSV)，系统将自动清洗数据，并按**代理商**生成可视化的考核长图。
 """)
 
 # 文件上传
-uploaded_file = st.file_uploader("请上传 CSV 文件", type=['csv'])
+uploaded_file = st.file_uploader("请上传 Excel (.xlsx) 或 CSV 文件", type=['xlsx', 'csv'])
 
 if uploaded_file is not None:
     try:
@@ -182,36 +189,40 @@ if uploaded_file is not None:
         st.divider()
         
         # 获取所有代理商列表
-        agents = df['代理商'].unique()
-        
-        # 选择代理商
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            selected_agent = st.selectbox("选择要生成图片的代理商/门店:", agents)
-        
-        if selected_agent:
-            # 筛选该代理商的数据
-            agent_data = df[df['代理商'] == selected_agent]
+        # 确保代理商列不为空
+        if '代理商' in df.columns:
+            agents = df['代理商'].dropna().unique()
             
-            with col2:
-                st.info(f"当前选中: {selected_agent} (共 {len(agent_data)} 行数据)")
+            # 选择代理商
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                selected_agent = st.selectbox("选择要生成图片的代理商/门店:", agents)
             
-            # 生成按钮
-            if st.button(f"生成 {selected_agent} 的报表图片"):
-                with st.spinner("正在绘图..."):
-                    img_buffer = generate_long_image(selected_agent, agent_data)
-                    
-                    # 展示图片
-                    st.image(img_buffer, caption=f"{selected_agent} 考核报表", use_container_width=True)
-                    
-                    # 下载按钮
-                    st.download_button(
-                        label=f"📥 下载 {selected_agent} 的报表图片",
-                        data=img_buffer,
-                        file_name=f"{selected_agent}_考核报表.png",
-                        mime="image/png"
-                    )
+            if selected_agent:
+                # 筛选该代理商的数据
+                agent_data = df[df['代理商'] == selected_agent]
+                
+                with col2:
+                    st.info(f"当前选中: {selected_agent} (共 {len(agent_data)} 行数据)")
+                
+                # 生成按钮
+                if st.button(f"生成 {selected_agent} 的报表图片"):
+                    with st.spinner("正在绘图..."):
+                        img_buffer = generate_long_image(selected_agent, agent_data)
+                        
+                        # 展示图片
+                        st.image(img_buffer, caption=f"{selected_agent} 考核报表", use_container_width=True)
+                        
+                        # 下载按钮
+                        st.download_button(
+                            label=f"📥 下载 {selected_agent} 的报表图片",
+                            data=img_buffer,
+                            file_name=f"{selected_agent}_考核报表.png",
+                            mime="image/png"
+                        )
+        else:
+            st.error("无法找到'代理商'列，请检查文件格式是否正确。")
 
     except Exception as e:
         st.error(f"处理文件时发生错误: {e}")
-        st.warning("请确保上传的文件格式与描述一致（前两行忽略，第三行指标，第四行列名）。")
+        st.warning("请确保上传的文件格式与描述一致（前两行忽略，第三行指标，第四行列名）。如果使用 Excel，请确保数据在第一个 Sheet。")
