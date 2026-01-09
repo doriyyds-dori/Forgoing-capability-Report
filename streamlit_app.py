@@ -7,29 +7,35 @@ import io
 import os
 import requests
 
-# --- 1. 字体配置 (修复版) ---
+# --- 1. 字体配置 (使用国内CDN) ---
 @st.cache_resource
 def get_font_name():
     """下载中文字体，注册到 Matplotlib，并返回字体名称"""
-    # 改回使用 Noto Sans SC，这是最稳定的 Google Fonts 中文字体源
-    font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC-Regular.ttf"
+    # 使用 jsdelivr CDN（国内可访问）
+    font_urls = [
+        "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosanssc/NotoSansSC-Regular.ttf",
+        "https://fastly.jsdelivr.net/gh/google/fonts@main/ofl/notosanssc/NotoSansSC-Regular. ttf",
+        "https://gcore.jsdelivr.net/gh/google/fonts@main/ofl/notosanssc/NotoSansSC-Regular.ttf"
+    ]
     font_path = "NotoSansSC-Regular.ttf"
     
-    # 1. 下载字体
-    if not os.path.exists(font_path):
-        with st.spinner("正在下载中文字体 (Noto Sans SC)..."):
-            try:
-                r = requests.get(font_url, timeout=30)
-                r.raise_for_status()
-                with open(font_path, "wb") as f:
-                    f.write(r.content)
-                st.success(f"✅ 字体下载成功，文件大小: {len(r.content)} 字节")
-            except Exception as e:
-                st.error(f"字体下载失败: {e}")
-                # 如果主链接失败，返回系统默认，避免程序崩溃
-                return "sans-serif"
+    if not os. path.exists(font_path):
+        with st.spinner("正在下载中文字体... "):
+            for font_url in font_urls: 
+                try:
+                    r = requests.get(font_url, timeout=30)
+                    r.raise_for_status()
+                    with open(font_path, "wb") as f:
+                        f.write(r.content)
+                    st. success(f"✅ 字体下载成功，文件大小: {len(r.content)} 字节")
+                    break
+                except Exception as e: 
+                    st.warning(f"尝试 {font_url} 失败: {e}")
+                    continue
+            else:
+                st.error("❌ 所有字体源均下载失败，使用系统默认字体")
+                return "SimHei"
     
-    # 2. 验证文件完整性
     if os.path.exists(font_path):
         file_size = os.path.getsize(font_path)
         if file_size < 1000:
@@ -37,14 +43,11 @@ def get_font_name():
             os.remove(font_path)
             return get_font_name()
     
-    # 3. 注册字体
     try:
-        fm.fontManager.addfont(font_path)
-        # 尝试创建一个 FontProperties 对象来获取准确的字体名称
-        prop = fm.FontProperties(fname=font_path)
-        return prop.get_name()
+        fm.fontManager. addfont(font_path)
+        return "Noto Sans SC"
     except Exception as e:
-        st.warning(f"字体注册失败: {e}，使用系统默认字体")
+        st.warning(f"字体注册失败:  {e}，使用系统默认字体")
         return "SimHei"
 
 # --- 2. 考核配置 ---
@@ -66,7 +69,7 @@ def get_target(col_name):
 
 def parse_val(v):
     try:
-        if pd.isna(v) or str(v).strip() in ["-", ""]:
+        if pd. isna(v) or str(v).strip() in ["-", ""]:
             return None
         return float(str(v).replace('%', '').strip())
     except:
@@ -74,45 +77,37 @@ def parse_val(v):
 
 # --- 3. 数据处理 ---
 def process_data(file):
-    df = None
-    # 如果是 CSV 文件
     if file.name.endswith('.csv'):
         encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'latin1']
-        for encoding in encodings:
+        df = None
+        for encoding in encodings: 
             try:
-                file.seek(0)
+                file. seek(0)
                 df = pd.read_csv(file, header=None, dtype=str, encoding=encoding)
-                st.info(f"✅ CSV文件已使用 {encoding.upper()} 编码成功读取")
+                st. info(f"✅ CSV文件已使用 {encoding. upper()} 编码成功读取")
                 break
             except (UnicodeDecodeError, UnicodeError):
                 continue
-            except Exception as e:
+            except Exception as e: 
                 st.warning(f"尝试 {encoding} 编码失败: {e}")
                 continue
-        
         if df is None:
-            st.error("❌ CSV文件编码识别失败！请用Excel另存为UTF-8格式")
+            st. error("❌ CSV文件编码识别失败！请用Excel另存为UTF-8格式")
             raise ValueError("无法识别CSV文件编码")
-    
-    # 如果是 Excel 文件
     else:
         try:
-            df = pd.read_excel(file, header=None, dtype=str, engine='openpyxl')
+            df = pd. read_excel(file, header=None, dtype=str, engine='openpyxl')
         except TypeError as e:
             if "InlineFont" in str(e):
                 st.warning("⚠️ 检测到Excel文件格式兼容性问题，尝试备用方式...")
                 try:
-                    df = pd.read_excel(file, header=None, dtype=str, engine='xlrd')
-                except:
+                    df = pd. read_excel(file, header=None, dtype=str, engine='xlrd')
+                except: 
                     st.error("❌ Excel文件读取失败！请另存为CSV格式(UTF-8编码)")
                     raise
-            else:
+            else: 
                 raise
-        except Exception as e:
-            st.error(f"❌ Excel读取出错: {e}")
-            raise
-
-    # 提取表头
+    
     header_L1 = df.iloc[2].ffill().tolist()
     header_L2 = df.iloc[3].tolist()
     
@@ -120,30 +115,24 @@ def process_data(file):
     for i, (h1, h2) in enumerate(zip(header_L1, header_L2)):
         h1 = str(h1).strip() if pd.notna(h1) else ""
         h2 = str(h2).strip() if pd.notna(h2) else ""
-        
         if h1 == "" or h1.lower() == "nan":
             h1 = h2
         if h2 == "" or h2.lower() == "nan":
             h2 = h1
-        
         clean_L1.append(h1)
         clean_L2.append(h2)
         unique_cols.append(f"{i}_{h1}_{h2}")
 
-    # 处理数据体
     data = df.iloc[4:].copy()
     data.columns = unique_cols
-    
-    cols = list(data.columns)
+    cols = list(data. columns)
     if len(cols) > 0:
         cols[0] = "base_代理商"
     if len(cols) > 1:
         cols[1] = "base_管家"
     data.columns = cols
-    
     data['base_代理商'] = data['base_代理商'].ffill()
     data = data.dropna(how='all')
-    
     headers_struct = list(zip(clean_L1, clean_L2, unique_cols))
     data.attrs['headers'] = headers_struct
     return data
@@ -154,18 +143,16 @@ def calc_status(row, headers_map):
     for h1, h2, col_key in headers_map:
         if "指标" in h2:
             target, t_name = get_target(h1)
-            if target is not None:
-                val = parse_val(row.get(col_key))
-                if val is not None:
+            if target is not None: 
+                val = parse_val(row. get(col_key))
+                if val is not None: 
                     comp_val = val
                     if target <= 1.0 and val > 1.0:
                         comp_val = val / 100.0
-                    
                     if comp_val < target:
                         t_str = f"{target:.0%}" if target <= 1.0 else f"{target}"
                         a_str = f"{comp_val:.1%}" if target <= 1.0 else f"{val}"
                         failures.append(f"{t_name}:\n{a_str} / {t_str}")
-    
     return "👍 全部合格" if not failures else "\n".join(failures)
 
 # --- 5. 绘图 ---
@@ -189,7 +176,7 @@ def generate_complex_image(agent_name, agent_data):
     for _, row in agent_data.iterrows():
         row_vals = []
         status_txt = calc_status(row, headers_all)
-        for h1, h2, key in headers_plot:
+        for h1, h2, key in headers_plot: 
             if key == "calc_status":
                 row_vals.append(status_txt)
             else:
@@ -206,7 +193,6 @@ def generate_complex_image(agent_name, agent_data):
     
     num_cols = len(headers_plot)
     num_rows = len(table_content)
-    
     row_heights = [1.2, 1.0]
     for r_idx in range(2, num_rows):
         max_newlines = 0
@@ -216,10 +202,8 @@ def generate_complex_image(agent_name, agent_data):
     
     total_h = sum(row_heights) * 0.5 + 2
     total_w = max(16, num_cols * 1.5 + 3)
-    
     fig, ax = plt.subplots(figsize=(total_w, total_h))
     ax.axis('off')
-    
     table = ax.table(cellText=table_content, cellLoc='center', loc='center', bbox=[0, 0, 1, 1])
     table.auto_set_font_size(False)
     table.set_fontsize(11)
@@ -227,7 +211,7 @@ def generate_complex_image(agent_name, agent_data):
 
     for (row, col), cell in cells.items():
         if row == 0:
-            cell.set_facecolor('#40466e')
+            cell. set_facecolor('#40466e')
             cell.set_text_props(color='white', weight='bold', size=13)
             cell.set_height(row_heights[row] * 0.04)
         elif row == 1:
@@ -242,9 +226,7 @@ def generate_complex_image(agent_name, agent_data):
                 font_weight = 'bold'
             else:
                 font_weight = 'normal'
-            
             cell.set_facecolor(bg)
-            
             txt_color = 'black'
             if col == num_cols - 1:
                 cell_text = cell.get_text().get_text()
@@ -253,7 +235,7 @@ def generate_complex_image(agent_name, agent_data):
                     font_weight = 'bold'
                 else:
                     txt_color = '#c62828'
-                    cell.set_text_props(ha='left')
+                    cell. set_text_props(ha='left')
             else:
                 h1, h2, _ = headers_plot[col]
                 cell_val = table_content[row][col]
@@ -263,9 +245,8 @@ def generate_complex_image(agent_name, agent_data):
                         v_num = parse_val(cell_val)
                         if v_num is not None:
                             c_v = v_num if (t_val > 1.0 or v_num <= 1.0) else v_num / 100.0
-                            if c_v < t_val:
+                            if c_v < t_val: 
                                 txt_color = '#d32f2f'
-            
             cell.set_text_props(color=txt_color, weight=font_weight)
             cell.set_height(row_heights[row] * 0.05)
 
@@ -291,7 +272,7 @@ st.markdown("""
 
 f = st.file_uploader("上传 Excel/CSV", type=['xlsx', 'xls', 'csv'])
 
-if f:
+if f: 
     try:
         df = process_data(f)
         st.success("✅ 数据加载成功")
@@ -301,9 +282,9 @@ if f:
             with st.spinner("正在生成高清长图..."):
                 sub_df = df[df['base_代理商'] == sel]
                 img = generate_complex_image(sel, sub_df)
-                st.image(img, use_container_width=True)
+                st. image(img, use_container_width=True)
                 st.download_button("📥 下载图片", img, f"{sel}_考核报表.png", "image/png")
     except Exception as e:
-        st.error(f"❌ 出错: {e}")
+        st. error(f"❌ 出错:  {e}")
         import traceback
         st.code(traceback.format_exc())
