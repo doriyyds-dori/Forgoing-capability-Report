@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-from matplotlib.table import Table
+from matplotlib. table import Table
 import io
 import os
 import requests
@@ -28,19 +28,19 @@ def get_font_name():
         fm.fontManager.addfont(font_path)
         return "Noto Sans SC"
     except Exception as e:
-        st. error(f"字体注册警告: {e}")
+        st.error(f"字体注册警告:  {e}")
         return "sans-serif"
 
 # --- 2. 考核配置 ---
 TARGETS = {
     "DCC首呼": 0.95, "DCC二呼": 0.90, "邀约开口率": 80.0, "加微开口率": 80.0,
-    "试乘试驾满意度":  4.80, "试��排程率": 0.90, "试驾后次日回访率": 0.90,
-    "试乘试驾满意度4.5分问卷占比": 0.90, "交易协助满意度": 4.80, "车辆交付满意度": 4.80
+    "试乘试驾满意度":  4.80, "试驾排程率": 0.90, "试驾后次日回访率": 0.90,
+    "试乘试驾满意度4.5分问卷占比": 0.90, "交易协助满意度": 4.80, "车辆交付满意度":  4.80
 }
 
 def get_target(col_name):
     """根据大指标名称匹配目标值"""
-    if not col_name: 
+    if not col_name:
         return None, None
     target_val, target_name = None, ""
     for k, v in TARGETS.items():
@@ -58,33 +58,50 @@ def parse_val(v):
     except:
         return None
 
-# --- 3. 数据处理 (兼容 openpyxl 错误) ---
+# --- 3. 数据处理 (兼容编码和openpyxl错误) ---
 def process_data(file):
     if file.name.endswith('.csv'):
-        df = pd.read_csv(file, header=None, dtype=str)
+        # 尝试多种编码读取CSV
+        encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'latin1']
+        df = None
+        
+        for encoding in encodings: 
+            try:
+                file.seek(0)  # 重置文件指针
+                df = pd.read_csv(file, header=None, dtype=str, encoding=encoding)
+                st.info(f"✅ CSV文件已使用 {encoding. upper()} 编码成功读取")
+                break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+            except Exception as e:
+                st.warning(f"尝试 {encoding} 编码失败: {e}")
+                continue
+        
+        if df is None:
+            st.error("""
+            ❌ **CSV文件编码识别失败！**
+            
+            **解决方案：**
+            1. 用Excel打开CSV，选择"另存为" → 编码选择 "UTF-8"
+            2. 或直接上传原始Excel文件（. xlsx格式）
+            """)
+            raise ValueError("无法识别CSV文件编码")
     else:
-        # 尝试多种方式读取 Excel
-        try:
-            # 方法1: 使用 openpyxl (默认)
-            df = pd. read_excel(file, header=None, dtype=str, engine='openpyxl')
+        # 读取Excel文件
+        try: 
+            df = pd.read_excel(file, header=None, dtype=str, engine='openpyxl')
         except TypeError as e:
             if "InlineFont" in str(e):
-                # openpyxl 版本兼容性问题，尝试其他引擎
-                st.warning("⚠️ 检测到 Excel 文件格式兼容性问题，尝试使用备用方式读取...")
+                st.warning("⚠️ 检测到Excel文件格式兼容性问题，尝试备用方式...")
                 try:
-                    # 方法2: 尝试 xlrd (适用于 . xls)
                     df = pd.read_excel(file, header=None, dtype=str, engine='xlrd')
                 except:
-                    # 方法3: 提示用户转换格式
                     st.error("""
-                    ❌ **Excel 文件读取失败！**
-                    
-                    **原因：** 您的 Excel 文件格式与当前环境不兼容（openpyxl 库版本问题）
+                    ❌ **Excel文件读取失败！**
                     
                     **解决方案：**
-                    1. 在 Excel 中打开文件，另存为 `.csv` 格式后重新上传
-                    2. 或者在 Excel 中"另存为" → 选择 "Excel 工作簿 (. xlsx)" 重新保存
-                    3. 或者使用 WPS/LibreOffice 打开并重新保存
+                    1. 在Excel中另存为 `.csv` 格式（选择UTF-8编码）
+                    2. 或用Excel重新保存为标准. xlsx格式
                     """)
                     raise
             else:
@@ -119,7 +136,7 @@ def process_data(file):
         cols[0] = "base_代理商"
     if len(cols) > 1:
         cols[1] = "base_管家"
-    data. columns = cols
+    data.columns = cols
     
     data['base_代理商'] = data['base_代理商']. ffill()
     data = data.dropna(how='all')
@@ -135,14 +152,14 @@ def calc_status(row, headers_map):
     for h1, h2, col_key in headers_map:
         if "指标" in h2:
             target, t_name = get_target(h1)
-            if target is not None: 
-                val = parse_val(row. get(col_key))
+            if target is not None:
+                val = parse_val(row.get(col_key))
                 if val is not None: 
                     comp_val = val
                     if target <= 1.0 and val > 1.0:
                         comp_val = val / 100.0
                     
-                    if comp_val < target:
+                    if comp_val < target: 
                         t_str = f"{target:.0%}" if target <= 1.0 else f"{target}"
                         a_str = f"{comp_val:.1%}" if target <= 1.0 else f"{val}"
                         failures.append(f"{t_name}:\n{a_str} / {t_str}")
@@ -172,7 +189,7 @@ def generate_complex_image(agent_name, agent_data):
     
     # 计算每一行的数据
     plot_data = []
-    for _, row in agent_data.iterrows():
+    for _, row in agent_data. iterrows():
         row_vals = []
         status_txt = calc_status(row, headers_all)
         
@@ -184,7 +201,7 @@ def generate_complex_image(agent_name, agent_data):
                 row_vals.append(val)
         plot_data.append(row_vals)
 
-    # 构建表格内容
+    # 构���表格内容
     table_content = []
     row0 = [x[0] for x in headers_plot]
     row1 = [x[1] for x in headers_plot]
@@ -235,7 +252,7 @@ def generate_complex_image(agent_name, agent_data):
             bg = '#f2f2f2' if row % 2 == 0 else 'white'
             
             butler_name = str(table_content[row][0])
-            if '小计' in butler_name:
+            if '小计' in butler_name: 
                 bg = '#fff3cd'
                 font_weight = 'bold'
             else:
@@ -286,14 +303,15 @@ st.markdown("""
 上传数据文件，生成带有**双层表头**和**智能考核判定**的专业报表。
 (已自动隐藏分子、分母列，只显示核心指标)
 
-⚠️ **如果 Excel 文件上传失败，请：**
-- 将文件另存为 CSV 格式后重新上传
-- 或使用 Excel 重新保存为 .xlsx 格式
+💡 **提示：**
+- 支持 `.xlsx`、`.xls`、`.csv` 格式
+- CSV文件会自动检测编码（UTF-8/GBK/GB2312）
+- 如遇问题，请用Excel另存为UTF-8编码的CSV
 """)
 
 f = st.file_uploader("上传 Excel/CSV", type=['xlsx', 'xls', 'csv'])
 
-if f:
+if f: 
     try:
         df = process_data(f)
         st.success("✅ 数据加载成功")
@@ -305,7 +323,7 @@ if f:
             with st.spinner("正在生成高清长图..."):
                 sub_df = df[df['base_代理商'] == sel]
                 img = generate_complex_image(sel, sub_df)
-                st.image(img, use_container_width=True)
+                st. image(img, use_container_width=True)
                 st.download_button("📥 下载图片", img, f"{sel}_考核报表.png", "image/png")
                 
     except Exception as e:
